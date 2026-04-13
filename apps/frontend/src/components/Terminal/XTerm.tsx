@@ -7,6 +7,17 @@ import { THEMES } from '../../lib/themes'
 import type { TerminalTheme } from '../../lib/themes'
 import type { CursorStyle } from '../../stores/settings'
 
+// ─── Clipboard fallback (HTTP / older browsers) ───────────────────────────────
+function copyFallback(text: string) {
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0'
+  document.body.appendChild(el)
+  el.select()
+  document.execCommand('copy')
+  el.remove()
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface XTermProps {
@@ -103,13 +114,46 @@ export function XTerm({
     const ro = new ResizeObserver(sendResize)
     ro.observe(containerRef.current)
 
+    // ── Toast helper ───────────────────────────────────────────────────────
+    const showToast = (msg: string) => {
+      const el = document.createElement('div')
+      el.textContent = msg
+      el.style.cssText = [
+        'position:absolute;bottom:14px;left:50%;transform:translateX(-50%)',
+        'background:rgba(0,0,0,0.75);color:#e5e5e5;padding:5px 14px',
+        'border-radius:6px;font-size:12px;pointer-events:none;z-index:10',
+        'white-space:nowrap;backdrop-filter:blur(4px)',
+      ].join(';')
+      containerRef.current?.appendChild(el)
+      setTimeout(() => el.remove(), 2500)
+    }
+
     // ── Right-click → paste ────────────────────────────────────────────────
     const onContextMenu = async (e: MouseEvent) => {
       e.preventDefault()
-      const text = await navigator.clipboard.readText().catch(() => '')
+      if (!navigator.clipboard?.readText) {
+        showToast('Clipboard requires HTTPS — use Ctrl+Shift+V')
+        return
+      }
+      const text = await navigator.clipboard.readText().catch(() => null)
+      if (text == null) {
+        showToast('Clipboard access denied — allow it in browser settings')
+        return
+      }
       if (text) term.paste(text)
     }
     containerRef.current.addEventListener('contextmenu', onContextMenu)
+
+    // ── Selection → auto-copy ──────────────────────────────────────────────
+    term.onSelectionChange(() => {
+      const text = term.getSelection()
+      if (!text) return
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => copyFallback(text))
+      } else {
+        copyFallback(text)
+      }
+    })
 
     return () => {
       ro.disconnect()

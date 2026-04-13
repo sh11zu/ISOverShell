@@ -142,7 +142,8 @@ export function XTerm({
       }
       if (text) term.paste(text)
     }
-    containerRef.current.addEventListener('contextmenu', onContextMenu)
+    // capture:true = intercepts before xterm's internal textarea shows the browser menu
+    containerRef.current.addEventListener('contextmenu', onContextMenu, { capture: true })
 
     // ── Selection → auto-copy ──────────────────────────────────────────────
     term.onSelectionChange(() => {
@@ -157,7 +158,7 @@ export function XTerm({
 
     return () => {
       ro.disconnect()
-      containerRef.current?.removeEventListener('contextmenu', onContextMenu)
+      containerRef.current?.removeEventListener('contextmenu', onContextMenu, { capture: true })
       ws.close()
       term.dispose()
       termRef.current    = null

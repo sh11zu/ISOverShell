@@ -25,8 +25,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 # Copy production node_modules (native modules already compiled — no rebuild needed)
-COPY --from=builder /app/node_modules              ./node_modules
-COPY --from=builder /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=builder /app/node_modules ./node_modules
 
 # Compiled output
 COPY --from=builder /app/apps/backend/dist   ./apps/backend/dist

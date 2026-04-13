@@ -1,16 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router'
-import { Monitor, Settings } from 'lucide-react'
+import { Link, useNavigate } from 'react-router'
+import { Monitor, Settings, LogOut, User } from 'lucide-react'
 import { useSessionStore } from '../stores/sessions'
+import { useAuthStore } from '../stores/auth'
+import { api } from '../lib/api'
 import type { Host } from '@isovershell/types'
 
 export function Sidebar() {
   const { data: hosts = [] } = useQuery<Host[]>({
     queryKey: ['hosts'],
-    queryFn: () => fetch('/api/hosts').then(r => r.json()),
+    queryFn: () => api('/api/hosts').then(r => r.json()),
   })
 
   const openSession = useSessionStore(s => s.openSession)
+  const { username, clearAuth } = useAuthStore()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    clearAuth()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <aside style={{
@@ -60,6 +69,29 @@ export function Sidebar() {
         <Link to="/settings" style={{ textDecoration: 'none' }}>
           <SidebarItem label="Settings" icon={<Settings size={14} />} />
         </Link>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: 'var(--border)', margin: '6px 4px' }} />
+
+        {/* User row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
+          <Link to="/profile" style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
+            <SidebarItem label={username ?? ''} icon={<User size={14} />} />
+          </Link>
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-muted)', padding: '6px 6px',
+              borderRadius: 6, display: 'flex', alignItems: 'center', flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--danger)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
       </div>
     </aside>
   )
@@ -85,7 +117,7 @@ function SidebarItem({
       onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
-      {icon && <span style={{ color: 'var(--text-muted)' }}>{icon}</span>}
+      {icon && <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{icon}</span>}
       {!icon && <Monitor size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

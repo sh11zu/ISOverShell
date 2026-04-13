@@ -12,6 +12,7 @@ const CreateHostBody = z.object({
   tags:        z.array(z.string()).default([]),
   password:    z.string().optional(),
   private_key: z.string().optional(),
+  passphrase:  z.string().optional(),
 })
 
 const UpdateHostBody = CreateHostBody.partial()
@@ -51,8 +52,8 @@ export async function hostsRoutes(app: FastifyInstance) {
       ).run(lastInsertRowid, body.password) // TODO: encrypt with AES-256
     } else if (body.auth_type === 'key' && body.private_key) {
       db.prepare(
-        `INSERT INTO credentials (host_id, auth_type, encrypted_value) VALUES (?, 'key', ?)`
-      ).run(lastInsertRowid, body.private_key) // TODO: encrypt with AES-256
+        `INSERT INTO credentials (host_id, auth_type, encrypted_value, passphrase) VALUES (?, 'key', ?, ?)`
+      ).run(lastInsertRowid, body.private_key, body.passphrase ?? null) // TODO: encrypt with AES-256
     }
 
     return reply.status(201).send({ id: Number(lastInsertRowid) })

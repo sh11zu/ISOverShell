@@ -7,15 +7,16 @@ import path from 'path'
 import { initDb } from './db/index'
 import { hostsRoutes } from './routes/hosts'
 import { groupsRoutes } from './routes/groups'
+import { loginRoute, protectedAuthRoutes } from './routes/auth'
 import { terminalWs } from './ws/terminal'
+import { authPreHandler } from './lib/jwt'
 
 const app = Fastify({ logger: { level: 'info' } })
 
-const PORT  = Number(process.env.PORT  ?? 3001)
+const PORT    = Number(process.env.PORT  ?? 3001)
 const IS_PROD = process.env.NODE_ENV === 'production'
 
 async function bootstrap() {
-  // CORS (dev only — in prod the frontend is served by the same process)
   if (!IS_PROD) {
     await app.register(fastifyCors, { origin: 'http://localhost:5173' })
   }
@@ -24,11 +25,21 @@ async function bootstrap() {
 
   initDb()
 
-  await app.register(hostsRoutes,  { prefix: '/api' })
-  await app.register(groupsRoutes, { prefix: '/api' })
+  // ── Public routes (no auth required) ────────────────────────────────────
+  await app.register(loginRoute, { prefix: '/api' })
+
+  // ── Protected routes ─────────────────────────────────────────────────────
+  await app.register(async (scope) => {
+    scope.addHook('preHandler', authPreHandler)
+    await scope.register(protectedAuthRoutes, { prefix: '/api' })
+    await scope.register(hostsRoutes,         { prefix: '/api' })
+    await scope.register(groupsRoutes,        { prefix: '/api' })
+  })
+
+  // ── WebSocket (JWT verified inside handler) ──────────────────────────────
   await app.register(terminalWs)
 
-  // Serve built frontend in production
+  // ── Serve built frontend in production ───────────────────────────────────
   if (IS_PROD) {
     await app.register(fastifyStatic, {
       root: path.join(__dirname, '../../frontend/dist'),

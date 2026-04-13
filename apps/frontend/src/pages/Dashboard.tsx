@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Monitor, Plus, Trash2 } from 'lucide-react'
 import { useSessionStore } from '../stores/sessions'
+import { api, apiJson } from '../lib/api'
 import type { Host } from '@isovershell/types'
 
 export function Dashboard() {
@@ -11,11 +12,11 @@ export function Dashboard() {
 
   const { data: hosts = [] } = useQuery<Host[]>({
     queryKey: ['hosts'],
-    queryFn: () => fetch('/api/hosts').then(r => r.json()),
+    queryFn: () => api('/api/hosts').then(r => r.json()),
   })
 
   const deleteHost = useMutation({
-    mutationFn: (id: number) => fetch(`/api/hosts/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: number) => api(`/api/hosts/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['hosts'] }),
   })
 
@@ -147,17 +148,12 @@ function AddHostModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({
     label: '', hostname: '', port: '22', username: '',
     auth_type: 'password' as 'password' | 'key',
-    password: '', private_key: '',
+    password: '', private_key: '', passphrase: '',
     tags: '',
   })
 
   const createHost = useMutation({
-    mutationFn: (body: object) =>
-      fetch('/api/hosts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }).then(r => r.json()),
+    mutationFn: (body: object) => apiJson('/api/hosts', 'POST', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['hosts'] })
       onClose()
@@ -174,6 +170,7 @@ function AddHostModal({ onClose }: { onClose: () => void }) {
       auth_type: form.auth_type,
       password:    form.auth_type === 'password' ? form.password    : undefined,
       private_key: form.auth_type === 'key'      ? form.private_key : undefined,
+      passphrase:  form.auth_type === 'key' && form.passphrase ? form.passphrase : undefined,
       tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
     })
   }
@@ -219,9 +216,14 @@ function AddHostModal({ onClose }: { onClose: () => void }) {
               <input type="password" {...field('password')} />
             </FormField>
           ) : (
-            <FormField label="Private key">
-              <textarea {...field('private_key')} rows={4} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" />
-            </FormField>
+            <>
+              <FormField label="Private key">
+                <textarea {...field('private_key')} rows={4} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" />
+              </FormField>
+              <FormField label="Passphrase (if key is encrypted)">
+                <input type="password" {...field('passphrase')} placeholder="Leave empty if none" />
+              </FormField>
+            </>
           )}
 
           <FormField label="Tags (comma-separated)">

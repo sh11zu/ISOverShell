@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css'
 import { THEMES } from '../../lib/themes'
 import type { TerminalTheme } from '../../lib/themes'
 import type { CursorStyle } from '../../stores/settings'
+import { useAuthStore } from '../../stores/auth'
 
 // ─── Clipboard fallback (HTTP / older browsers) ───────────────────────────────
 function copyFallback(text: string) {
@@ -72,7 +73,8 @@ export function XTerm({
 
     // ── WebSocket ──────────────────────────────────────────────────────────
     const wsProto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const ws = new WebSocket(`${wsProto}://${location.host}/ws/terminal/${hostId}`)
+    const token   = useAuthStore.getState().token ?? ''
+    const ws = new WebSocket(`${wsProto}://${location.host}/ws/terminal/${hostId}?token=${encodeURIComponent(token)}`)
 
     ws.onopen = () => term.writeln('\x1b[2mConnecting…\x1b[0m')
 

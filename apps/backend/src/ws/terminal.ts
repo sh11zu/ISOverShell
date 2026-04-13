@@ -1,12 +1,23 @@
 import { FastifyInstance } from 'fastify'
 import { Client as SshClient, ConnectConfig } from 'ssh2'
 import { getDb } from '../db/index'
+import { verifyToken } from '../lib/jwt'
 
 export async function terminalWs(app: FastifyInstance) {
-  app.get<{ Params: { hostId: string } }>(
+  app.get<{ Params: { hostId: string }; Querystring: { token?: string } }>(
     '/ws/terminal/:hostId',
     { websocket: true },
-    (socket, req) => {
+    async (socket, req) => {
+      // ── JWT verification ───────────────────────────────────────────────────
+      const token = req.query.token ?? ''
+      try {
+        await verifyToken(token)
+      } catch {
+        socket.send(JSON.stringify({ type: 'error', payload: 'Unauthorized' }))
+        socket.close()
+        return
+      }
+
       const { hostId } = req.params
       const db = getDb()
 
@@ -86,11 +97,11 @@ export async function terminalWs(app: FastifyInstance) {
         ssh.end()
       })
 
-      // Connect SSH
+      // ── Connect SSH ────────────────────────────────────────────────────────
       const connectConfig: ConnectConfig = {
-        host:     host.hostname,
-        port:     host.port,
-        username: host.username,
+        host:         host.hostname,
+        port:         host.port,
+        username:     host.username,
         readyTimeout: 10_000,
       }
 
@@ -98,6 +109,7 @@ export async function terminalWs(app: FastifyInstance) {
         connectConfig.password = cred.encrypted_value
       } else if (cred?.auth_type === 'key') {
         connectConfig.privateKey = cred.encrypted_value
+        if (cred.passphrase) connectConfig.passphrase = cred.passphrase
       }
 
       ssh.connect(connectConfig)

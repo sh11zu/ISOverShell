@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
+import bcrypt from 'bcryptjs'
 
 const DB_PATH = process.env.DATABASE_PATH
   ?? path.join(process.cwd(), 'data', 'isovershell.db')
@@ -66,5 +67,23 @@ function runMigrations(db: Database.Database): void {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      username      TEXT    NOT NULL UNIQUE,
+      password_hash TEXT    NOT NULL,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
   `)
+
+  // Add passphrase column to credentials if not present (idempotent)
+  try { db.exec(`ALTER TABLE credentials ADD COLUMN passphrase TEXT`) } catch { /* already exists */ }
+
+  // Seed default user if not present
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get('lando-moritz')
+  if (!existing) {
+    const hash = bcrypt.hashSync('IsoverShell!', 12)
+    db.prepare(`INSERT INTO users (username, password_hash) VALUES (?, ?)`).run('lando-moritz', hash)
+    console.log('[db] default user created: lando-moritz')
+  }
 }

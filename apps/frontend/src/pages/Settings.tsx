@@ -64,13 +64,11 @@ function Row({
 // ─── Theme swatch ─────────────────────────────────────────────────────────────
 
 function ThemeSwatch({
-  id,
   label,
   palette,
   active,
   onClick,
 }: {
-  id: TerminalTheme
   label: string
   palette: string[]
   active: boolean
@@ -259,7 +257,6 @@ export function Settings() {
             {(Object.keys(THEME_META) as TerminalTheme[]).map(id => (
               <ThemeSwatch
                 key={id}
-                id={id}
                 label={THEME_META[id].label}
                 palette={THEME_META[id].palette}
                 active={terminalTheme === id}

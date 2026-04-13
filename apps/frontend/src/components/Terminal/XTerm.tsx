@@ -3,50 +3,48 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
-
-// ─── Themes ───────────────────────────────────────────────────────────────────
-
-const THEMES = {
-  dark: {
-    background: '#0f0f0f', foreground: '#e5e5e5', cursor: '#6366f1',
-    selectionBackground: '#6366f130',
-    black: '#1a1a1a',   red: '#ef4444',   green: '#22c55e',  yellow: '#eab308',
-    blue: '#3b82f6',    magenta: '#a855f7', cyan: '#06b6d4', white: '#e5e5e5',
-    brightBlack: '#404040', brightRed: '#f87171',   brightGreen: '#4ade80',  brightYellow: '#facc15',
-    brightBlue: '#60a5fa',  brightMagenta: '#c084fc', brightCyan: '#22d3ee', brightWhite: '#ffffff',
-  },
-  dracula: {
-    background: '#282a36', foreground: '#f8f8f2', cursor: '#ff79c6',
-    selectionBackground: '#44475a',
-    black: '#21222c',   red: '#ff5555',   green: '#50fa7b',  yellow: '#f1fa8c',
-    blue: '#bd93f9',    magenta: '#ff79c6', cyan: '#8be9fd', white: '#f8f8f2',
-    brightBlack: '#6272a4', brightRed: '#ff6e6e', brightGreen: '#69ff94', brightYellow: '#ffffa5',
-    brightBlue: '#d6acff',  brightMagenta: '#ff92df', brightCyan: '#a4ffff', brightWhite: '#ffffff',
-  },
-} as const
+import { THEMES } from '../../lib/themes'
+import type { TerminalTheme } from '../../lib/themes'
+import type { CursorStyle } from '../../stores/settings'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface XTermProps {
   hostId: number
   sessionId: string
-  theme?: keyof typeof THEMES
+  theme?: TerminalTheme
   fontSize?: number
+  cursorStyle?: CursorStyle
+  cursorBlink?: boolean
 }
 
-export function XTerm({ hostId, sessionId: _sessionId, theme = 'dark', fontSize = 14 }: XTermProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
+export function XTerm({
+  hostId,
+  sessionId: _sessionId,
+  theme = 'dark',
+  fontSize = 14,
+  cursorStyle = 'block',
+  cursorBlink = true,
+}: XTermProps) {
+  const containerRef  = useRef<HTMLDivElement>(null)
+  const termRef       = useRef<Terminal | null>(null)
+  const fitAddonRef   = useRef<FitAddon | null>(null)
+  const themeRef      = useRef(theme)
+  const fontSizeRef   = useRef(fontSize)
+  const cursorStyleRef = useRef(cursorStyle)
+  const cursorBlinkRef = useRef(cursorBlink)
 
+  // ── Initialize terminal + WebSocket (only when host changes) ──────────────
   useEffect(() => {
     if (!containerRef.current) return
 
     const term = new Terminal({
-      theme: THEMES[theme],
+      theme: THEMES[themeRef.current],
       fontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", monospace',
-      fontSize,
+      fontSize: fontSizeRef.current,
       lineHeight: 1.2,
-      cursorBlink: true,
-      cursorStyle: 'block',
+      cursorBlink: cursorBlinkRef.current,
+      cursorStyle: cursorStyleRef.current,
       allowProposedApi: true,
       scrollback: 5000,
     })
@@ -57,6 +55,9 @@ export function XTerm({ hostId, sessionId: _sessionId, theme = 'dark', fontSize 
     term.loadAddon(linksAddon)
     term.open(containerRef.current)
     fitAddon.fit()
+
+    termRef.current    = term
+    fitAddonRef.current = fitAddon
 
     // ── WebSocket ──────────────────────────────────────────────────────────
     const wsProto = location.protocol === 'https:' ? 'wss' : 'ws'
@@ -115,8 +116,35 @@ export function XTerm({ hostId, sessionId: _sessionId, theme = 'dark', fontSize 
       containerRef.current?.removeEventListener('contextmenu', onContextMenu)
       ws.close()
       term.dispose()
+      termRef.current    = null
+      fitAddonRef.current = null
     }
-  }, [hostId, theme, fontSize])
+  }, [hostId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Apply theme without reconnecting ─────────────────────────────────────
+  useEffect(() => {
+    themeRef.current = theme
+    if (termRef.current) termRef.current.options.theme = THEMES[theme]
+  }, [theme])
+
+  // ── Apply font size without reconnecting ──────────────────────────────────
+  useEffect(() => {
+    fontSizeRef.current = fontSize
+    if (termRef.current && fitAddonRef.current) {
+      termRef.current.options.fontSize = fontSize
+      fitAddonRef.current.fit()
+    }
+  }, [fontSize])
+
+  // ── Apply cursor settings without reconnecting ────────────────────────────
+  useEffect(() => {
+    cursorStyleRef.current = cursorStyle
+    cursorBlinkRef.current = cursorBlink
+    if (termRef.current) {
+      termRef.current.options.cursorStyle = cursorStyle
+      termRef.current.options.cursorBlink = cursorBlink
+    }
+  }, [cursorStyle, cursorBlink])
 
   return (
     <div

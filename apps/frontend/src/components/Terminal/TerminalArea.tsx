@@ -1,9 +1,11 @@
 import { X } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessions'
+import { useSettingsStore } from '../../stores/settings'
 import { XTerm } from './XTerm'
 
 export function TerminalArea() {
   const { sessions, activeId, closeSession, setActive } = useSessionStore()
+  const { terminalTheme, fontSize, cursorStyle, cursorBlink } = useSettingsStore()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -59,7 +61,14 @@ export function TerminalArea() {
               display: s.id === activeId ? 'block' : 'none',
             }}
           >
-            <XTerm hostId={s.hostId} sessionId={s.id} />
+            <XTerm
+                hostId={s.hostId}
+                sessionId={s.id}
+                theme={terminalTheme}
+                fontSize={fontSize}
+                cursorStyle={cursorStyle}
+                cursorBlink={cursorBlink}
+              />
           </div>
         ))}
       </div>

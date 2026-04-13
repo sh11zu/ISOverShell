@@ -34,7 +34,7 @@ interface XTermProps {
   fontSize?: number
 }
 
-export function XTerm({ hostId, sessionId, theme = 'dark', fontSize = 14 }: XTermProps) {
+export function XTerm({ hostId, sessionId: _sessionId, theme = 'dark', fontSize = 14 }: XTermProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { Monitor, Settings, Plus } from 'lucide-react'
+import { Monitor, Settings } from 'lucide-react'
 import { useSessionStore } from '../stores/sessions'
 import type { Host } from '@isovershell/types'
 

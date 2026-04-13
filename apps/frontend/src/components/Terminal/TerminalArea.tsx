@@ -1,7 +1,27 @@
-import { X } from 'lucide-react'
+import { X, Monitor, LayoutDashboard, Settings, User } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessions'
 import { useSettingsStore } from '../../stores/settings'
 import { XTerm } from './XTerm'
+import { Dashboard } from '../../pages/Dashboard'
+import { Settings as SettingsPage } from '../../pages/Settings'
+import { Profile } from '../../pages/Profile'
+import type { PageKind } from '../../stores/sessions'
+
+const PAGE_ICON: Record<PageKind, React.ReactNode> = {
+  dashboard: <LayoutDashboard size={12} />,
+  settings:  <Settings size={12} />,
+  profile:   <User size={12} />,
+}
+
+function PagePanel({ page }: { page: PageKind }) {
+  return (
+    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
+      {page === 'dashboard' && <Dashboard />}
+      {page === 'settings'  && <SettingsPage />}
+      {page === 'profile'   && <Profile />}
+    </div>
+  )
+}
 
 export function TerminalArea() {
   const { sessions, activeId, closeSession, setActive } = useSessionStore()
@@ -33,6 +53,16 @@ export function TerminalArea() {
                 transition: 'background 0.1s',
               }}
             >
+              {s.kind === 'page' && s.page && (
+                <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>
+                  {PAGE_ICON[s.page]}
+                </span>
+              )}
+              {s.kind === 'terminal' && (
+                <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>
+                  <Monitor size={12} />
+                </span>
+              )}
               <span>{s.label}</span>
               <button
                 onClick={e => { e.stopPropagation(); closeSession(s.id) }}
@@ -51,24 +81,29 @@ export function TerminalArea() {
         })}
       </div>
 
-      {/* Terminal panels */}
+      {/* Panels */}
       <div style={{ flex: 1, position: 'relative' }}>
         {sessions.map(s => (
           <div
             key={s.id}
             style={{
               position: 'absolute', inset: 0,
-              display: s.id === activeId ? 'block' : 'none',
+              display: s.id === activeId ? 'flex' : 'none',
+              flexDirection: 'column',
             }}
           >
-            <XTerm
-                hostId={s.hostId}
+            {s.kind === 'terminal' ? (
+              <XTerm
+                hostId={s.hostId!}
                 sessionId={s.id}
                 theme={terminalTheme}
                 fontSize={fontSize}
                 cursorStyle={cursorStyle}
                 cursorBlink={cursorBlink}
               />
+            ) : (
+              <PagePanel page={s.page!} />
+            )}
           </div>
         ))}
       </div>

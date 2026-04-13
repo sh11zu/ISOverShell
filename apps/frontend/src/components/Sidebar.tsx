@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router'
-import { Monitor, Settings, LogOut, User } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { Monitor, Settings, LogOut, User, LayoutDashboard } from 'lucide-react'
 import { useSessionStore } from '../stores/sessions'
 import { useAuthStore } from '../stores/auth'
 import { api } from '../lib/api'
 import type { Host } from '@isovershell/types'
+import type { PageKind } from '../stores/sessions'
 
 export function Sidebar() {
   const { data: hosts = [] } = useQuery<Host[]>({
@@ -12,13 +14,26 @@ export function Sidebar() {
     queryFn: () => api('/api/hosts').then(r => r.json()),
   })
 
+  const sessions = useSessionStore(s => s.sessions)
   const openSession = useSessionStore(s => s.openSession)
   const { username, clearAuth } = useAuthStore()
   const navigate = useNavigate()
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+
+  const allTags = [...new Set(hosts.flatMap(h => h.tags))].sort()
+  const filteredHosts = tagFilter ? hosts.filter(h => h.tags.includes(tagFilter)) : hosts
 
   const handleLogout = () => {
     clearAuth()
     navigate('/login', { replace: true })
+  }
+
+  const handlePageNav = (page: PageKind, label: string) => {
+    if (sessions.length > 0) {
+      openSession({ kind: 'page', page, label })
+    } else {
+      navigate(page === 'dashboard' ? '/' : `/${page}`)
+    }
   }
 
   return (
@@ -45,12 +60,31 @@ export function Sidebar() {
           Hosts
         </div>
 
-        {hosts.map(host => (
+        {/* Tag filter pills */}
+        {allTags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '2px 8px 8px' }}>
+            <SidebarTagPill
+              label="All"
+              active={tagFilter === null}
+              onClick={() => setTagFilter(null)}
+            />
+            {allTags.map(tag => (
+              <SidebarTagPill
+                key={tag}
+                label={tag}
+                active={tagFilter === tag}
+                onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+              />
+            ))}
+          </div>
+        )}
+
+        {filteredHosts.map(host => (
           <SidebarItem
             key={host.id}
             label={host.label}
             sub={`${host.username}@${host.hostname}`}
-            onClick={() => openSession({ hostId: host.id, label: host.label, hostname: host.hostname })}
+            onClick={() => openSession({ kind: 'terminal', hostId: host.id, label: host.label, hostname: host.hostname })}
           />
         ))}
 
@@ -59,25 +93,38 @@ export function Sidebar() {
             No hosts yet
           </div>
         )}
+        {hosts.length > 0 && filteredHosts.length === 0 && (
+          <div style={{ padding: '8px', fontSize: 12, color: 'var(--text-muted)' }}>
+            No hosts with tag "{tagFilter}"
+          </div>
+        )}
       </nav>
 
       {/* Footer */}
       <div style={{ padding: '8px', borderTop: '1px solid var(--border)' }}>
-        <Link to="/" style={{ textDecoration: 'none' }}>
-          <SidebarItem label="Dashboard" icon={<Monitor size={14} />} />
-        </Link>
-        <Link to="/settings" style={{ textDecoration: 'none' }}>
-          <SidebarItem label="Settings" icon={<Settings size={14} />} />
-        </Link>
+        <SidebarItem
+          label="Dashboard"
+          icon={<LayoutDashboard size={14} />}
+          onClick={() => handlePageNav('dashboard', 'Dashboard')}
+        />
+        <SidebarItem
+          label="Settings"
+          icon={<Settings size={14} />}
+          onClick={() => handlePageNav('settings', 'Settings')}
+        />
 
         {/* Divider */}
         <div style={{ height: 1, background: 'var(--border)', margin: '6px 4px' }} />
 
         {/* User row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
-          <Link to="/profile" style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
-            <SidebarItem label={username ?? ''} icon={<User size={14} />} />
-          </Link>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SidebarItem
+              label={username ?? ''}
+              icon={<User size={14} />}
+              onClick={() => handlePageNav('profile', 'Profile')}
+            />
+          </div>
           <button
             onClick={handleLogout}
             title="Sign out"
@@ -94,6 +141,23 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+  )
+}
+
+function SidebarTagPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 500,
+        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+        background: active ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text-muted)',
+        cursor: 'pointer', transition: 'all 0.15s',
+      }}
+    >
+      {label}
+    </button>
   )
 }
 

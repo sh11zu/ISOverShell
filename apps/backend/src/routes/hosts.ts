@@ -75,13 +75,37 @@ export async function hostsRoutes(app: FastifyInstance) {
     if (body.group_id  !== undefined) { fields.push('group_id = ?');  values.push(body.group_id) }
     if (body.tags      !== undefined) { fields.push('tags = ?');      values.push(JSON.stringify(body.tags)) }
 
-    if (fields.length === 0) return reply.status(400).send({ error: 'Nothing to update' })
+    const hasCredUpdate = (body.password !== undefined && body.password !== '') ||
+                          (body.private_key !== undefined && body.private_key !== '')
 
-    fields.push('updated_at = ?')
-    values.push(new Date().toISOString())
-    values.push(req.params.id)
+    if (fields.length === 0 && !hasCredUpdate) return reply.status(400).send({ error: 'Nothing to update' })
 
-    db.prepare(`UPDATE hosts SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+    if (fields.length > 0) {
+      fields.push('updated_at = ?')
+      values.push(new Date().toISOString())
+      values.push(req.params.id)
+      db.prepare(`UPDATE hosts SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+    }
+
+    if (body.password) {
+      const existing = db.prepare('SELECT id FROM credentials WHERE host_id = ?').get(req.params.id)
+      if (existing) {
+        db.prepare('UPDATE credentials SET auth_type = ?, encrypted_value = ?, passphrase = NULL WHERE host_id = ?')
+          .run('password', body.password, req.params.id)
+      } else {
+        db.prepare('INSERT INTO credentials (host_id, auth_type, encrypted_value) VALUES (?, ?, ?)')
+          .run(req.params.id, 'password', body.password)
+      }
+    } else if (body.private_key) {
+      const existing = db.prepare('SELECT id FROM credentials WHERE host_id = ?').get(req.params.id)
+      if (existing) {
+        db.prepare('UPDATE credentials SET auth_type = ?, encrypted_value = ?, passphrase = ? WHERE host_id = ?')
+          .run('key', body.private_key, body.passphrase ?? null, req.params.id)
+      } else {
+        db.prepare('INSERT INTO credentials (host_id, auth_type, encrypted_value, passphrase) VALUES (?, ?, ?, ?)')
+          .run(req.params.id, 'key', body.private_key, body.passphrase ?? null)
+      }
+    }
 
     return reply.status(204).send()
   })

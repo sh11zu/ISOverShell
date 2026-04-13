@@ -1,16 +1,23 @@
 import { create } from 'zustand'
 
+export type PageKind = 'dashboard' | 'settings' | 'profile'
+
 export interface OpenSession {
   id: string
-  hostId: number
+  kind: 'terminal' | 'page'
   label: string
-  hostname: string
+  hostId?: number
+  hostname?: string
+  page?: PageKind
 }
 
 interface SessionStore {
   sessions: OpenSession[]
   activeId: string | null
-  openSession: (host: Pick<OpenSession, 'hostId' | 'label' | 'hostname'>) => void
+  openSession: (opts:
+    | { kind: 'terminal'; hostId: number; label: string; hostname: string }
+    | { kind: 'page'; page: PageKind; label: string }
+  ) => void
   closeSession: (id: string) => void
   setActive: (id: string) => void
 }
@@ -19,12 +26,20 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sessions: [],
   activeId: null,
 
-  openSession(host) {
+  openSession(opts) {
+    if (opts.kind === 'page') {
+      const existing = get().sessions.find(s => s.kind === 'page' && s.page === opts.page)
+      if (existing) {
+        set({ activeId: existing.id })
+        return
+      }
+    }
     const id = `s-${Date.now()}`
-    set(s => ({
-      sessions: [...s.sessions, { id, ...host }],
-      activeId: id,
-    }))
+    const session: OpenSession =
+      opts.kind === 'terminal'
+        ? { id, kind: 'terminal', label: opts.label, hostId: opts.hostId, hostname: opts.hostname }
+        : { id, kind: 'page', label: opts.label, page: opts.page }
+    set(s => ({ sessions: [...s.sessions, session], activeId: id }))
   },
 
   closeSession(id) {

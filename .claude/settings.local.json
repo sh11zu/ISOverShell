@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(command -v pnpm)",
+      "Bash(pnpm --version)",
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(npm --workspace=backend run typecheck)",
+      "Bash(npm --workspace=frontend run typecheck)",
+      "Bash(docker --version)",
+      "Bash(docker compose:*)",
+      "Bash(cp .env.example .env)",
+      "Bash(sed -i 's/change-me-in-production-use-a-long-random-string/isovershell-dev-secret-2024/' .env)",
+      "Bash(docker context:*)",
+      "Bash(docker info:*)"
+    ]
+  }
+}

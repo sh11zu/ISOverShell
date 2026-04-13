@@ -1,0 +1,14 @@
+services:
+  isovershell:
+    build: .
+    container_name: isovershell
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_PATH: /app/data/isovershell.db
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+    restart: unless-stopped

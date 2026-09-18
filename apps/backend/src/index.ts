@@ -41,8 +41,10 @@ async function bootstrap() {
 
   // ── Serve built frontend in production ───────────────────────────────────
   if (IS_PROD) {
+    const frontendDist = process.env.FRONTEND_DIST
+      ?? path.join(__dirname, '../../frontend/dist')
     await app.register(fastifyStatic, {
-      root: path.join(__dirname, '../../frontend/dist'),
+      root: frontendDist,
       prefix: '/',
       wildcard: false,
     })

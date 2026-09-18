@@ -9,7 +9,10 @@
   "scripts": {
     "dev": "concurrently -n frontend,backend -c cyan,green \"npm --workspace=frontend run dev\" \"npm --workspace=backend run dev\"",
     "build": "npm --workspace=backend run build && npm --workspace=frontend run build",
-    "typecheck": "npm --workspaces run typecheck --if-present"
+    "typecheck": "npm --workspaces run typecheck --if-present",
+    "electron": "npm run build && npm --workspace=desktop run start",
+    "electron:start": "npm --workspace=desktop run start",
+    "electron:build": "npm run build && npm --workspace=desktop run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

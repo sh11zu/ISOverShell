@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import path from 'path'
 import fs from 'fs'
 import bcrypt from 'bcryptjs'
@@ -6,9 +6,9 @@ import bcrypt from 'bcryptjs'
 const DB_PATH = process.env.DATABASE_PATH
   ?? path.join(process.cwd(), 'data', 'isovershell.db')
 
-let _db: Database.Database | null = null
+let _db: DatabaseSync | null = null
 
-export function getDb(): Database.Database {
+export function getDb(): DatabaseSync {
   if (!_db) throw new Error('Database not initialized — call initDb() first')
   return _db
 }
@@ -17,15 +17,15 @@ export function initDb(): void {
   const dir = path.dirname(DB_PATH)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
-  _db = new Database(DB_PATH)
-  _db.pragma('journal_mode = WAL')
-  _db.pragma('foreign_keys = ON')
+  _db = new DatabaseSync(DB_PATH)
+  _db.exec("PRAGMA journal_mode = WAL")
+  _db.exec("PRAGMA foreign_keys = ON")
 
   runMigrations(_db)
   console.log(`[db] ready → ${DB_PATH}`)
 }
 
-function runMigrations(db: Database.Database): void {
+function runMigrations(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS groups (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
